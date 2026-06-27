@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+@theme {
+  --color-neon: #7cfc00;
+  --color-neon-glow: rgba(124, 252, 0, 0.6);
+}
+
+/* Body reset for full-screen canvas */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+}
+
+/* Neon glow text utility */
+.neon-glow {
+  text-shadow:
+    0 0 4px rgba(124, 252, 0, 0.8),
+    0 0 8px rgba(124, 252, 0, 0.6),
+    0 0 16px rgba(124, 252, 0, 0.4),
+    0 0 32px rgba(124, 252, 0, 0.2);
+}
