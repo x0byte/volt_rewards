@@ -4,6 +4,7 @@ import { Environment, OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import RewardCard from './RewardCard'
 import FloatingPoints, { generatePoint } from './FloatingPoints'
+import Starfield from './Starfield'
 import type { FloatingPoint } from './FloatingPoints'
 
 export default function Scene() {
@@ -21,31 +22,31 @@ export default function Scene() {
   }, [])
 
   return (
-    <div className="w-full h-full relative">
+    <div className="w-full h-full">
       <Canvas
-        camera={{ position: [0, 0, 6], fov: 35 }}
+        camera={{ position: [0, 0.2, 6.5], fov: 35 }}
         gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.0 }}
-        style={{ background: '#050505' }}
+        style={{ background: '#050508' }}
       >
-        {/* Environment for realistic metal reflections */}
-        <Environment preset="city" environmentIntensity={0.5} />
+        {/* Starfield — outer space background */}
+        <Starfield />
 
-        {/* Ambient fill */}
-        <ambientLight intensity={0.1} color="#222222" />
+        {/* Subtle night environment for dark metallic reflections */}
+        <Environment preset="night" environmentIntensity={0.3} />
 
         {/* Neon green under-glow from below/behind */}
         <pointLight
-          position={[0, -3, -2]}
-          intensity={2.5}
-          distance={10}
+          position={[0, -3.5, -2]}
+          intensity={3.0}
+          distance={12}
           color="#7cfc00"
           decay={2}
         />
 
         {/* Secondary neon green fill from front-bottom */}
         <pointLight
-          position={[0, -2, 2]}
-          intensity={1.2}
+          position={[0, -2.5, 2.5]}
+          intensity={1.5}
           distance={8}
           color="#7cfc00"
           decay={2}
@@ -54,27 +55,29 @@ export default function Scene() {
         {/* White rim light from top-right to define edges */}
         <directionalLight
           position={[3, 4, 3]}
-          intensity={1.2}
+          intensity={1.0}
           color="#ffffff"
         />
 
-        {/* Soft backlight */}
+        {/* Soft backlight for depth */}
         <directionalLight
           position={[-1, 1, -4]}
-          intensity={0.4}
+          intensity={0.3}
           color="#4488ff"
         />
 
-        {/* Green aura fog */}
-        <fog attach="fog" args={['#050505', 8, 15]} />
+        {/* Dark fog for depth */}
+        <fog attach="fog" args={['#050508', 10, 25]} />
 
-        {/* OrbitControls for full 360° rotation — drag to spin the card in any direction */}
+        {/* OrbitControls — auto-rotate slow, pause on user drag */}
         <OrbitControls
           enablePan={false}
           enableZoom={false}
           enableDamping
           dampingFactor={0.08}
-          rotateSpeed={0.8}
+          rotateSpeed={0.5}
+          autoRotate
+          autoRotateSpeed={1.2}
           target={[0, 0, 0]}
         />
 
