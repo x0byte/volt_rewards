@@ -40,6 +40,25 @@ export function generatePoint(position: THREE.Vector3, id: number): FloatingPoin
   }
 }
 
+function cornerBrackets(color: string): React.CSSProperties {
+  const S = 6 // bracket arm length
+  const T = 1 // line thickness
+
+  return {
+    position: 'relative' as const,
+    background: `
+      linear-gradient(90deg, ${color}, ${color}) 0 0 / ${S}px ${T}px no-repeat,
+      linear-gradient(180deg, ${color}, ${color}) 0 0 / ${T}px ${S}px no-repeat,
+      linear-gradient(270deg, ${color}, ${color}) 100% 0 / ${S}px ${T}px no-repeat,
+      linear-gradient(180deg, ${color}, ${color}) 100% 0 / ${T}px ${S}px no-repeat,
+      linear-gradient(90deg, ${color}, ${color}) 0 100% / ${S}px ${T}px no-repeat,
+      linear-gradient(0deg, ${color}, ${color}) 0 100% / ${T}px ${S}px no-repeat,
+      linear-gradient(270deg, ${color}, ${color}) 100% 100% / ${S}px ${T}px no-repeat,
+      linear-gradient(0deg, ${color}, ${color}) 100% 100% / ${T}px ${S}px no-repeat
+    `,
+  }
+}
+
 function FloatingPointItem({
   point,
   onRemove,
@@ -85,10 +104,8 @@ function FloatingPointItem({
           userSelect: 'none',
           lineHeight: 1.8,
           textTransform: 'uppercase',
-          background: `${c}08`,
-          border: `1px solid ${c}33`,
-          borderRadius: '4px',
-          padding: '6px 10px',
+          padding: '8px 12px',
+          ...cornerBrackets(c),
         }}
       >
         <div style={{ letterSpacing: '4px' }}>
