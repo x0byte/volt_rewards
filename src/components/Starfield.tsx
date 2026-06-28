@@ -2,63 +2,85 @@ import { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
-const COUNT_SMALL = 3500
-const COUNT_LARGE = 200
-const RADIUS_MIN = 12
-const RADIUS_MAX = 35
+const COUNT_DUST = 5000
+const COUNT_STARS = 400
+const COUNT_DEBRIS = 600
+const RADIUS_MIN = 10
+const RADIUS_MAX = 40
 
-function makeStars(count: number, large: boolean) {
+function makeStars(count: number, opts: { large: boolean; debris?: boolean }) {
   const pos = new Float32Array(count * 3)
-  const col = new Float32Array(count * 3)
   for (let i = 0; i < count; i++) {
-    const radius = RADIUS_MIN + Math.random() * (RADIUS_MAX - RADIUS_MIN)
+    const radius = opts.debris
+      ? 6 + Math.random() * 18
+      : RADIUS_MIN + Math.random() * (RADIUS_MAX - RADIUS_MIN)
     const theta = Math.random() * Math.PI * 2
     const phi = Math.acos(2 * Math.random() - 1)
     pos[i * 3] = radius * Math.sin(phi) * Math.cos(theta)
     pos[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta)
     pos[i * 3 + 2] = radius * Math.cos(phi)
-
-    const b = large
-      ? 0.7 + Math.random() * 0.3
-      : 0.4 + Math.random() * 0.6
-    col[i * 3] = b
-    col[i * 3 + 1] = b * (0.88 + Math.random() * 0.12)
-    col[i * 3 + 2] = b
   }
   return pos
 }
 
-function StarCloud({ count, large }: { count: number; large: boolean }) {
+function DustLayer() {
   const ref = useRef<THREE.Points>(null!)
-  const positions = useMemo(() => makeStars(count, large), [count, large])
+  const positions = useMemo(() => makeStars(COUNT_DUST, { large: false }), [])
 
   useFrame((state) => {
     if (ref.current) {
-      ref.current.rotation.y = state.clock.elapsedTime * (large ? 0.005 : 0.01)
-      ref.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.003) * 0.02
+      ref.current.rotation.y = state.clock.elapsedTime * 0.006
     }
   })
 
   return (
     <points ref={ref}>
       <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          args={[positions, 3]}
-          count={positions.length / 3}
-          array={positions}
-          itemSize={3}
-        />
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} count={positions.length / 3} array={positions} itemSize={3} />
       </bufferGeometry>
-      <pointsMaterial
-        size={large ? 0.08 : 0.025}
-        sizeAttenuation
-        transparent
-        opacity={large ? 1 : 0.7}
-        blending={THREE.AdditiveBlending}
-        depthWrite={false}
-        color={large ? '#d0d8ff' : '#a0b8ff'}
-      />
+      <pointsMaterial size={0.015} sizeAttenuation transparent opacity={0.5} blending={THREE.AdditiveBlending} depthWrite={false} color="#8899bb" />
+    </points>
+  )
+}
+
+function StarLayer() {
+  const ref = useRef<THREE.Points>(null!)
+  const positions = useMemo(() => makeStars(COUNT_STARS, { large: true }), [])
+
+  useFrame((state) => {
+    if (ref.current) {
+      ref.current.rotation.y = state.clock.elapsedTime * 0.003
+      ref.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.002) * 0.015
+    }
+  })
+
+  return (
+    <points ref={ref}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} count={positions.length / 3} array={positions} itemSize={3} />
+      </bufferGeometry>
+      <pointsMaterial size={0.07} sizeAttenuation blending={THREE.AdditiveBlending} depthWrite={false} color="#d0d8ff" />
+    </points>
+  )
+}
+
+function DebrisLayer() {
+  const ref = useRef<THREE.Points>(null!)
+  const positions = useMemo(() => makeStars(COUNT_DEBRIS, { large: false, debris: true }), [])
+
+  useFrame((state) => {
+    if (ref.current) {
+      ref.current.rotation.y = state.clock.elapsedTime * 0.004
+      ref.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.005) * 0.01
+    }
+  })
+
+  return (
+    <points ref={ref}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} count={positions.length / 3} array={positions} itemSize={3} />
+      </bufferGeometry>
+      <pointsMaterial size={0.04} sizeAttenuation transparent opacity={0.35} blending={THREE.AdditiveBlending} depthWrite={false} color="#887766" />
     </points>
   )
 }
@@ -66,8 +88,9 @@ function StarCloud({ count, large }: { count: number; large: boolean }) {
 export default function Starfield() {
   return (
     <group>
-      <StarCloud count={COUNT_SMALL} large={false} />
-      <StarCloud count={COUNT_LARGE} large={true} />
+      <DustLayer />
+      <StarLayer />
+      <DebrisLayer />
     </group>
   )
 }

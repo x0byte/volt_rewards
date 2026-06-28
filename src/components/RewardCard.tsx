@@ -56,7 +56,7 @@ export default function RewardCard({ onEarn }: RewardCardProps) {
         onClick={handleClick}
       >
         <meshStandardMaterial
-          color="#0a0a0a"
+          color="#1A191F"
           metalness={0.95}
           roughness={0.35}
           envMapIntensity={1.0}

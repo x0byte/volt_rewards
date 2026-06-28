@@ -19,15 +19,6 @@ html {
   scroll-behavior: smooth;
 }
 
-/* ── Neon glow text utility ────────────────────────── */
-.neon-glow {
-  text-shadow:
-    0 0 4px rgba(124, 252, 0, 0.8),
-    0 0 8px rgba(124, 252, 0, 0.6),
-    0 0 16px rgba(124, 252, 0, 0.4),
-    0 0 32px rgba(124, 252, 0, 0.2);
-}
-
 /* ── Fixed Header (hashgraphvc-style) ──────────────── */
 .fixed-header {
   position: fixed;
@@ -55,7 +46,7 @@ html {
 }
 
 .fixed-header__logo {
-  height: 2rem;
+  height: 1.6rem;
   width: auto;
   opacity: 0;
   transform: scale(0.95);
@@ -67,62 +58,55 @@ html {
   transform: scale(1);
 }
 
-/* ── Hero Content ──────────────────────────────────── */
+/* ── Hero Content — left-aligned, clean typography ─── */
 .hero-title {
   font-family: 'Inter Tight', 'Inter', system-ui, sans-serif;
-  font-weight: 800;
-  font-size: clamp(3.2rem, 8vw, 6rem);
-  letter-spacing: -0.06em;
-  line-height: 1.0;
-  color: #f0ecf7;
-}
-
-.hero-title--accent {
-  color: #7cfc00;
-  text-shadow:
-    0 0 8px rgba(124, 252, 0, 0.6),
-    0 0 20px rgba(124, 252, 0, 0.3),
-    0 0 40px rgba(124, 252, 0, 0.15);
+  font-weight: 700;
+  font-size: clamp(1.6rem, 3.2vw, 2.6rem);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: #e8e4ef;
 }
 
 .hero-tagline {
   font-family: 'Inter', system-ui, sans-serif;
-  font-size: clamp(0.9rem, 1.3vw, 1.1rem);
-  color: rgba(200, 200, 220, 0.65);
-  line-height: 1.6;
-  max-width: 480px;
+  font-size: clamp(0.8rem, 1vw, 0.9rem);
+  color: rgba(200, 200, 220, 0.45);
+  line-height: 1.5;
 }
 
-/* ── Scroll Indicator ──────────────────────────────── */
-.scroll-indicator {
+/* ── Scroll Indicator — bottom-right ───────────────── */
+.scroll-indicator--right {
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 6px;
-  animation: scroll-bob 2.4s ease-in-out infinite;
+  animation: scroll-fade 2.4s ease-in-out infinite;
 }
 
 .scroll-indicator__label {
   font-family: 'Inter', system-ui, sans-serif;
-  font-size: 0.65rem;
-  font-weight: 600;
+  font-size: 0.6rem;
+  font-weight: 500;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: rgba(200, 200, 220, 0.35);
+  color: rgba(200, 200, 220, 0.25);
 }
 
-.scroll-indicator__arrow {
-  display: block;
-  width: 14px;
-  height: 14px;
-  border-right: 1.5px solid rgba(200, 200, 220, 0.3);
-  border-bottom: 1.5px solid rgba(200, 200, 220, 0.3);
-  transform: rotate(45deg);
+.scroll-indicator__icon {
+  width: 12px;
+  height: 12px;
+  color: rgba(200, 200, 220, 0.25);
+  animation: scroll-bob 2.4s ease-in-out infinite;
 }
 
 @keyframes scroll-bob {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(6px); }
+  50% { transform: translateY(4px); }
+}
+
+@keyframes scroll-fade {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
 }
 
 /* ── Features / Value Proposition Section ──────────── */
@@ -270,15 +254,11 @@ html {
   }
 
   .fixed-header__logo {
-    height: 1.4rem;
+    height: 1.2rem;
   }
 
   .hero-title {
-    font-size: clamp(2.4rem, 12vw, 3.2rem);
-  }
-
-  .hero-title--accent {
-    margin-top: -0.5rem;
+    font-size: clamp(1.4rem, 6vw, 1.6rem);
   }
 
   .features-section {

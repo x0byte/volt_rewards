@@ -24,20 +24,20 @@ export default function Scene() {
   return (
     <div className="w-full h-full">
       <Canvas
-        camera={{ position: [0, 0.2, 6.5], fov: 35 }}
-        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.0 }}
+        camera={{ position: [0, 0.1, 4.5], fov: 35 }}
+        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.1 }}
         style={{ background: '#050508' }}
       >
         {/* Starfield — outer space background */}
         <Starfield />
 
-        {/* Subtle night environment for dark metallic reflections */}
-        <Environment preset="night" environmentIntensity={0.3} />
+        {/* Night environment for metallic reflections */}
+        <Environment preset="night" environmentIntensity={0.45} />
 
         {/* Neon green under-glow from below/behind */}
         <pointLight
           position={[0, -3.5, -2]}
-          intensity={3.0}
+          intensity={4.0}
           distance={12}
           color="#7cfc00"
           decay={2}
@@ -46,7 +46,7 @@ export default function Scene() {
         {/* Secondary neon green fill from front-bottom */}
         <pointLight
           position={[0, -2.5, 2.5]}
-          intensity={1.5}
+          intensity={2.0}
           distance={8}
           color="#7cfc00"
           decay={2}
@@ -54,20 +54,27 @@ export default function Scene() {
 
         {/* White rim light from top-right to define edges */}
         <directionalLight
-          position={[3, 4, 3]}
-          intensity={1.0}
+          position={[4, 5, 4]}
+          intensity={2.0}
           color="#ffffff"
+        />
+
+        {/* Soft blue-left fill to catch the left edge */}
+        <directionalLight
+          position={[-3, 2, 3]}
+          intensity={0.6}
+          color="#4488cc"
         />
 
         {/* Soft backlight for depth */}
         <directionalLight
-          position={[-1, 1, -4]}
-          intensity={0.3}
+          position={[-1, 1, -5]}
+          intensity={0.5}
           color="#4488ff"
         />
 
         {/* Dark fog for depth */}
-        <fog attach="fog" args={['#050508', 10, 25]} />
+        <fog attach="fog" args={['#161616', 10, 25]} />
 
         {/* OrbitControls — auto-rotate slow, pause on user drag */}
         <OrbitControls
