@@ -5,21 +5,283 @@
   --color-neon-glow: rgba(124, 252, 0, 0.6);
 }
 
-/* Body reset for full-screen canvas */
+/* ── Reset ─────────────────────────────────────────── */
 html, body, #root {
   margin: 0;
   padding: 0;
   width: 100%;
   height: 100%;
-  overflow: hidden;
-  background: #000;
+  overflow-x: hidden;
+  background: #050508;
 }
 
-/* Neon glow text utility */
-.neon-glow {
-  text-shadow:
-    0 0 4px rgba(124, 252, 0, 0.8),
-    0 0 8px rgba(124, 252, 0, 0.6),
-    0 0 16px rgba(124, 252, 0, 0.4),
-    0 0 32px rgba(124, 252, 0, 0.2);
+html {
+  scroll-behavior: smooth;
+}
+
+/* ── Noise overlay for industrial texture ─────────── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.04;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+/* ── Fixed Header ─────────────────────────────────── */
+.fixed-header {
+  position: fixed;
+  top: 2.8rem;
+  left: 2.8rem;
+  z-index: 80;
+  transform: translateY(0);
+  transition: transform 0.6s cubic-bezier(0.14, 1, 0.34, 1);
+}
+
+@media (min-width: 1024px) {
+  .fixed-header {
+    top: 4rem;
+    left: 5rem;
+  }
+}
+
+.fixed-header--hidden {
+  transform: translateY(-120%);
+}
+
+.fixed-header__inner {
+  display: flex;
+  align-items: center;
+}
+
+.fixed-header__logo {
+  height: 28px;
+  width: auto;
+  opacity: 0;
+  transform: scale(0.95);
+  transition: transform 1.4s cubic-bezier(0.14, 1, 0.34, 1), opacity 0.6s linear;
+}
+
+.fixed-header--visible .fixed-header__logo {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* ── Hero Content — left-aligned, clean typography ─── */
+.hero-title {
+  font-family: 'Inter Tight', 'Inter', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: clamp(1.6rem, 3.2vw, 2.6rem);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: #e8e4ef;
+}
+
+.hero-tagline {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: clamp(0.8rem, 1vw, 0.9rem);
+  color: rgba(200, 200, 220, 0.45);
+  line-height: 1.5;
+}
+
+/* ── Scroll Indicator — bottom-right ───────────────── */
+.scroll-indicator--right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  animation: scroll-fade 2.4s ease-in-out infinite;
+}
+
+.scroll-indicator__label {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(200, 200, 220, 0.25);
+}
+
+.scroll-indicator__icon {
+  width: 12px;
+  height: 12px;
+  color: rgba(200, 200, 220, 0.25);
+  animation: scroll-bob 2.4s ease-in-out infinite;
+}
+
+@keyframes scroll-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(4px); }
+}
+
+@keyframes scroll-fade {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* ── Features / Value Proposition Section ──────────── */
+.features-section {
+  background: linear-gradient(180deg, #050508 0%, #0a0a18 40%, #090910 70%, #050508 100%);
+  padding: 8rem 0 10rem;
+  position: relative;
+}
+
+.features-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(124, 252, 0, 0.15), transparent);
+}
+
+.section-label {
+  font-family: 'Inter Tight', 'Inter', system-ui, sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #7cfc00;
+  display: inline-block;
+  margin-bottom: 1rem;
+}
+
+.section-title {
+  font-family: 'Inter Tight', 'Inter', system-ui, sans-serif;
+  font-weight: 800;
+  font-size: clamp(2rem, 4vw, 3rem);
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  color: #f0ecf7;
+  margin-bottom: 1rem;
+}
+
+.section-subtitle {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: clamp(0.9rem, 1.2vw, 1.05rem);
+  color: rgba(200, 200, 220, 0.55);
+  line-height: 1.6;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.benefit-card {
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+  border: 1px solid rgba(124, 252, 0, 0.08);
+  border-radius: 12px;
+  background: rgba(124, 252, 0, 0.02);
+  transition: border-color 0.4s ease, background 0.4s ease;
+}
+
+.benefit-card:hover {
+  border-color: rgba(124, 252, 0, 0.2);
+  background: rgba(124, 252, 0, 0.04);
+}
+
+.benefit-card__icon {
+  margin-bottom: 1.5rem;
+  display: inline-flex;
+}
+
+.benefit-card__title {
+  font-family: 'Inter Tight', 'Inter', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+  color: #f0ecf7;
+  margin-bottom: 0.75rem;
+}
+
+.benefit-card__desc {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.9rem;
+  color: rgba(200, 200, 220, 0.5);
+  line-height: 1.7;
+}
+
+/* ── Signup Section ────────────────────────────────── */
+.signup-section {
+  background: linear-gradient(180deg, #050508 0%, #0a0a18 30%, #050508 100%);
+  padding: 8rem 0 0;
+  position: relative;
+}
+
+.signup-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(124, 252, 0, 0.1), transparent);
+}
+
+.signup-input {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 0.7rem 1.2rem;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.95rem;
+  color: #e8e4ef;
+  outline: none;
+  width: 100%;
+  max-width: 320px;
+  transition: border-color 0.3s ease;
+}
+
+.signup-input::placeholder {
+  color: rgba(200, 200, 220, 0.3);
+}
+
+.signup-input:focus {
+  border-color: rgba(124, 252, 0, 0.4);
+}
+
+/* ── Footer ────────────────────────────────────────── */
+.site-footer {
+  margin-top: 6rem;
+  padding: 2rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* ── Utility ───────────────────────────────────────── */
+.oh {
+  overflow: hidden;
+}
+
+.ttu {
+  text-transform: uppercase;
+}
+
+/* ── Responsive tweaks ─────────────────────────────── */
+@media (max-width: 640px) {
+  .fixed-header {
+    top: 1.4rem;
+    left: 1.4rem;
+  }
+
+  .fixed-header__logo {
+    height: 20px;
+  }
+
+  .hero-title {
+    font-size: clamp(1.4rem, 6vw, 1.6rem);
+  }
+
+  .features-section {
+    padding: 5rem 0 6rem;
+  }
+
+  .signup-section {
+    padding: 5rem 0 0;
+  }
+
+  .signup-input {
+    max-width: 100%;
+  }
 }

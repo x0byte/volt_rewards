@@ -2,30 +2,60 @@ import { useState, useEffect } from 'react'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 
+const NAMES = [
+  'VOID-7X9', 'NEB-Q2', 'STAR-K11', 'PULSE-04', 'WARP-Z1',
+  'NOVA-F8', 'ECHO-T4', 'PHANTOM-R3', 'DRIFT-M2', 'FLUX-J7',
+  'CIPHER-X1', 'HORIZON-V6', 'VECTOR-A9', 'BEACON-L5', 'RADIANT-P3',
+]
+
+const COLORS = ['#7cfc00', '#6ee7ff', '#a78bfa', '#f472b6', '#fb923c']
+
 export interface FloatingPoint {
   id: number
-  value: number
+  name: string
+  coords: string
+  points: number
+  color: string
   position: THREE.Vector3
   offsetX: number
   offsetZ: number
   startTime: number
 }
 
-const POINT_VALUES = [10, 25, 50, 100, 250]
-const DURATION = 1.8 // seconds
+const DURATION = 2.4
 
-function randomPointValue(): number {
-  return POINT_VALUES[Math.floor(Math.random() * POINT_VALUES.length)]
-}
+function rng(min: number, max: number) { return min + Math.random() * (max - min) }
 
 export function generatePoint(position: THREE.Vector3, id: number): FloatingPoint {
   return {
     id,
-    value: randomPointValue(),
+    name: NAMES[Math.floor(Math.random() * NAMES.length)],
+    coords: `${rng(-999, 999).toFixed(1)}, ${rng(-999, 999).toFixed(1)}, ${rng(-999, 999).toFixed(1)}`,
+    points: Math.floor(rng(50, 999)),
+    color: COLORS[Math.floor(Math.random() * COLORS.length)],
     position: position.clone(),
-    offsetX: (Math.random() - 0.5) * 1.2,
-    offsetZ: (Math.random() - 0.5) * 0.8,
+    offsetX: (Math.random() - 0.5) * 1.6,
+    offsetZ: (Math.random() - 0.5) * 1.2,
     startTime: performance.now(),
+  }
+}
+
+function cornerBrackets(color: string): React.CSSProperties {
+  const S = 6 // bracket arm length
+  const T = 1 // line thickness
+
+  return {
+    position: 'relative' as const,
+    background: `
+      linear-gradient(90deg, ${color}, ${color}) 0 0 / ${S}px ${T}px no-repeat,
+      linear-gradient(180deg, ${color}, ${color}) 0 0 / ${T}px ${S}px no-repeat,
+      linear-gradient(270deg, ${color}, ${color}) 100% 0 / ${S}px ${T}px no-repeat,
+      linear-gradient(180deg, ${color}, ${color}) 100% 0 / ${T}px ${S}px no-repeat,
+      linear-gradient(90deg, ${color}, ${color}) 0 100% / ${S}px ${T}px no-repeat,
+      linear-gradient(0deg, ${color}, ${color}) 0 100% / ${T}px ${S}px no-repeat,
+      linear-gradient(270deg, ${color}, ${color}) 100% 100% / ${S}px ${T}px no-repeat,
+      linear-gradient(0deg, ${color}, ${color}) 100% 100% / ${T}px ${S}px no-repeat
+    `,
   }
 }
 
@@ -54,29 +84,42 @@ function FloatingPointItem({
     return () => cancelAnimationFrame(rafId)
   }, [point.id, point.startTime, onRemove])
 
-  const progress = elapsed
-  const x = point.position.x + point.offsetX * progress * 0.5
-  const y = point.position.y + progress * 2.5
-  const z = point.position.z + point.offsetZ * progress * 0.3
-  const opacity = Math.max(0, 1 - progress)
+  const p = elapsed
+  const x = point.position.x + point.offsetX * p * 0.5
+  const y = point.position.y + p * 2.8
+  const z = point.position.z + point.offsetZ * p * 0.3
+  const opacity = Math.max(0, 1 - p * 0.75)
+  const c = point.color
 
   return (
-    <Html position={[x, y, z]} center style={{ pointerEvents: 'none' }}>
+    <Html position={[x, y, z]} center style={{ pointerEvents: 'none', opacity, transition: 'none' }}>
       <div
         style={{
-          color: '#7cfc00',
-          fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
-          fontWeight: 800,
-          fontSize: 'clamp(1rem, 2.5vw, 1.6rem)',
-          textShadow:
-            '0 0 4px rgba(124,252,0,0.8), 0 0 8px rgba(124,252,0,0.6), 0 0 16px rgba(124,252,0,0.4), 0 0 32px rgba(124,252,0,0.2)',
-          opacity,
+          fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif",
+          fontSize: '16px',
+          letterSpacing: '4px',
+          color: c,
+          textShadow: `0 0 6px ${c}66, 0 0 12px ${c}33, 0 0 24px ${c}11`,
           whiteSpace: 'nowrap',
           userSelect: 'none',
-          transition: 'none',
+          lineHeight: 1.8,
+          textTransform: 'uppercase',
+          padding: '8px 12px',
+          ...cornerBrackets(c),
         }}
       >
-        + {point.value} pts
+        <div style={{ letterSpacing: '4px' }}>
+          <span style={{ opacity: 0.4, fontWeight: 400 }}>NAME </span>
+          <span style={{ fontWeight: 700 }}>{point.name}</span>
+        </div>
+        <div style={{ letterSpacing: '3px', fontSize: '14px' }}>
+          <span style={{ opacity: 0.4, fontWeight: 400 }}>COORD </span>
+          <span style={{ opacity: 0.7 }}>{point.coords}</span>
+        </div>
+        <div style={{ letterSpacing: '4px', marginTop: '2px' }}>
+          <span style={{ opacity: 0.4, fontWeight: 400 }}>PTS </span>
+          <span style={{ fontWeight: 700, opacity: 1 }}>+{point.points}</span>
+        </div>
       </div>
     </Html>
   )

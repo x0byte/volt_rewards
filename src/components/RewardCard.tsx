@@ -1,11 +1,12 @@
-import { useRef, useCallback } from 'react'
-import { useLoader } from '@react-three/fiber'
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react'
+import { useLoader, useFrame } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
 import { RoundedBox } from '@react-three/drei'
 import * as THREE from 'three'
 import type { Mesh } from 'three'
 
 interface RewardCardProps {
+  wireframe: boolean
   onEarn: (worldPos: THREE.Vector3) => void
 }
 
@@ -19,8 +20,77 @@ const SMOOTHNESS = 4
 const LOGO_W = 2237
 const LOGO_H = 426
 
-export default function RewardCard({ onEarn }: RewardCardProps) {
+// ── Perimeter wireframe overlay ─────────────────────
+function WireframeOverlay({ geometry }: { geometry: THREE.BufferGeometry }) {
+  const linesRef = useRef<THREE.LineSegments>(null!)
+  const pointsRef = useRef<THREE.Points>(null!)
+
+  // Extract only perimeter edges (hard creases)
+  const edgeGeo = useMemo(() => {
+    return new THREE.EdgesGeometry(geometry, 1)
+  }, [geometry])
+
+  // Store original edge vertex positions for animation
+  const origPos = useMemo(() => {
+    const pos = edgeGeo.attributes.position
+    return new Float32Array(pos.array)
+  }, [edgeGeo])
+
+  // Skip animation if there's no position data
+  const hasPos = edgeGeo.attributes.position.count > 0
+
+  // Animate vertices — soft wave on the perimeter cage
+  useFrame((state) => {
+    if (!linesRef.current || !hasPos) return
+    const pos = edgeGeo.attributes.position
+    const t = state.clock.elapsedTime
+    for (let i = 0; i < pos.count; i++) {
+      const i3 = i * 3
+      pos.array[i3]     = origPos[i3]     + Math.sin(t * 2.5 + i * 0.7) * 0.012
+      pos.array[i3 + 1] = origPos[i3 + 1] + Math.cos(t * 2.0 + i * 0.5) * 0.012
+      pos.array[i3 + 2] = origPos[i3 + 2] + Math.sin(t * 1.8 + i * 0.3) * 0.012
+    }
+    pos.needsUpdate = true
+    if (pointsRef.current) {
+      pointsRef.current.geometry.attributes.position.needsUpdate = true
+    }
+  })
+
+  return (
+    <group>
+      {/* White perimeter lines */}
+      <lineSegments ref={linesRef} geometry={edgeGeo} position={[0, 0, 0.01]}>
+        <lineBasicMaterial color="white" transparent opacity={0.9} />
+      </lineSegments>
+      {/* White nodes at perimeter vertices */}
+      <points ref={pointsRef} geometry={edgeGeo} position={[0, 0, 0.01]}>
+        <pointsMaterial
+          color="white"
+          size={0.04}
+          sizeAttenuation
+          transparent
+          opacity={1}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </points>
+    </group>
+  )
+}
+
+// ── Main RewardCard ─────────────────────────────────
+export default function RewardCard({ onEarn, wireframe }: RewardCardProps) {
   const meshRef = useRef<Mesh>(null)
+  const [cageGeo, setCageGeo] = useState<THREE.BufferGeometry | null>(null)
+  const geoCaptured = useRef(false)
+  // Capture the RoundedBox geometry once after mount
+  useEffect(() => {
+    if (meshRef.current && !geoCaptured.current) {
+      const geo = meshRef.current.geometry.clone()
+      setCageGeo(geo)
+      geoCaptured.current = true
+    }
+  })
 
   // Load Vector.png (white logo on transparent background)
   const logoTexture = useLoader(THREE.TextureLoader, '/logo.png')
@@ -47,7 +117,7 @@ export default function RewardCard({ onEarn }: RewardCardProps) {
 
   return (
     <group>
-      {/* Main card body — black metallic */}
+      {/* Main card body — dims during wireframe */}
       <RoundedBox
         ref={meshRef}
         args={[CARD_W, CARD_H, CARD_D]}
@@ -56,19 +126,25 @@ export default function RewardCard({ onEarn }: RewardCardProps) {
         onClick={handleClick}
       >
         <meshStandardMaterial
-          color="#0a0a0a"
+          color="#1A191F"
           metalness={0.95}
           roughness={0.35}
           envMapIntensity={1.0}
+          transparent
+          opacity={wireframe ? 0.12 : 1}
         />
       </RoundedBox>
 
-      {/* Front face — original Vector.png (white logo on transparent) */}
+      {/* Perimeter wireframe overlay — only outer edges */}
+      {wireframe && cageGeo && <WireframeOverlay geometry={cageGeo} />}
+
+      {/* Front face — logo */}
       <mesh position={[0, 0, CARD_D / 2 + 0.02]}>
         <planeGeometry args={[logoW, logoH]} />
         <meshBasicMaterial
           map={logoTexture}
           transparent
+          opacity={1}
           depthWrite={false}
           side={THREE.DoubleSide}
         />
@@ -80,26 +156,29 @@ export default function RewardCard({ onEarn }: RewardCardProps) {
         <meshBasicMaterial
           map={logoTexture}
           transparent
+          opacity={1}
           depthWrite={false}
           side={THREE.DoubleSide}
         />
       </mesh>
 
-      {/* Silver edge rim */}
-      <RoundedBox
-        args={[CARD_W + 0.02, CARD_H + 0.02, CARD_D + 0.01]}
-        radius={BEVEL + 0.01}
-        smoothness={SMOOTHNESS}
-      >
-        <meshStandardMaterial
-          color="#2a2a2a"
-          metalness={0.98}
-          roughness={0.25}
-          envMapIntensity={1.2}
-          transparent
-          opacity={0.6}
-        />
-      </RoundedBox>
+      {/* Silver edge rim — hidden during wireframe */}
+      {!wireframe && (
+        <RoundedBox
+          args={[CARD_W + 0.02, CARD_H + 0.02, CARD_D + 0.01]}
+          radius={BEVEL + 0.01}
+          smoothness={SMOOTHNESS}
+        >
+          <meshStandardMaterial
+            color="#2a2a2a"
+            metalness={0.98}
+            roughness={0.25}
+            envMapIntensity={1.2}
+            transparent
+            opacity={0.6}
+          />
+        </RoundedBox>
+      )}
     </group>
   )
 }
