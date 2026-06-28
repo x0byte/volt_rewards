@@ -6,6 +6,7 @@ import * as THREE from 'three'
 import type { Mesh } from 'three'
 
 interface RewardCardProps {
+  wireframe: boolean
   onEarn: (worldPos: THREE.Vector3) => void
 }
 
@@ -78,21 +79,10 @@ function WireframeOverlay({ geometry }: { geometry: THREE.BufferGeometry }) {
 }
 
 // ── Main RewardCard ─────────────────────────────────
-export default function RewardCard({ onEarn }: RewardCardProps) {
+export default function RewardCard({ onEarn, wireframe }: RewardCardProps) {
   const meshRef = useRef<Mesh>(null)
-  const [wireframe, setWireframe] = useState(false)
   const [cageGeo, setCageGeo] = useState<THREE.BufferGeometry | null>(null)
   const geoCaptured = useRef(false)
-
-  // Interval: every 8s, card morphs to wireframe for 2s
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setWireframe(true)
-      setTimeout(() => setWireframe(false), 2000)
-    }, 8000)
-    return () => clearInterval(interval)
-  }, [])
-
   // Capture the RoundedBox geometry once after mount
   useEffect(() => {
     if (meshRef.current && !geoCaptured.current) {
@@ -154,7 +144,7 @@ export default function RewardCard({ onEarn }: RewardCardProps) {
         <meshBasicMaterial
           map={logoTexture}
           transparent
-          opacity={wireframe ? 0 : 1}
+          opacity={1}
           depthWrite={false}
           side={THREE.DoubleSide}
         />
@@ -166,7 +156,7 @@ export default function RewardCard({ onEarn }: RewardCardProps) {
         <meshBasicMaterial
           map={logoTexture}
           transparent
-          opacity={wireframe ? 0 : 1}
+          opacity={1}
           depthWrite={false}
           side={THREE.DoubleSide}
         />
