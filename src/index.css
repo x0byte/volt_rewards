@@ -19,10 +19,22 @@ html {
   scroll-behavior: smooth;
 }
 
-/* ── Fixed Header (hashgraphvc-style) ──────────────── */
+/* ── Noise overlay for industrial texture ─────────── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.04;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+/* ── Fixed Header ─────────────────────────────────── */
 .fixed-header {
   position: fixed;
-  top: 2.4rem;
+  top: 2.8rem;
   left: 2.8rem;
   z-index: 80;
   transform: translateY(0);
@@ -46,7 +58,7 @@ html {
 }
 
 .fixed-header__logo {
-  height: 1.6rem;
+  height: 28px;
   width: auto;
   opacity: 0;
   transform: scale(0.95);
@@ -254,7 +266,7 @@ html {
   }
 
   .fixed-header__logo {
-    height: 1.2rem;
+    height: 20px;
   }
 
   .hero-title {

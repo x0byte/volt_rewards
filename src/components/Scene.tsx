@@ -25,56 +25,49 @@ export default function Scene() {
     <div className="w-full h-full">
       <Canvas
         camera={{ position: [0, 0.1, 4.5], fov: 35 }}
-        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.1 }}
+        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.2 }}
         style={{ background: '#050508' }}
       >
         {/* Starfield — outer space background */}
         <Starfield />
 
-        {/* Night environment for metallic reflections */}
-        <Environment preset="night" environmentIntensity={0.45} />
+        {/* Night environment for cold metallic reflections */}
+        <Environment preset="night" environmentIntensity={0.5} />
 
-        {/* Neon green under-glow from below/behind */}
+        {/* Harsh neon green under-glow from below/behind */}
         <pointLight
-          position={[0, -3.5, -2]}
-          intensity={4.0}
-          distance={12}
+          position={[0, -4, -2]}
+          intensity={6.0}
+          distance={14}
           color="#7cfc00"
-          decay={2}
+          decay={1.5}
         />
 
-        {/* Secondary neon green fill from front-bottom */}
+        {/* Secondary neon green stab from front-bottom */}
         <pointLight
-          position={[0, -2.5, 2.5]}
-          intensity={2.0}
+          position={[0, -2.5, 3]}
+          intensity={3.0}
           distance={8}
           color="#7cfc00"
           decay={2}
         />
 
-        {/* White rim light from top-right to define edges */}
+        {/* Hard white rim light from top-right — industrial edge definition */}
         <directionalLight
-          position={[4, 5, 4]}
-          intensity={2.0}
-          color="#ffffff"
+          position={[5, 6, 4]}
+          intensity={3.0}
+          color="#d0d8ff"
         />
 
-        {/* Soft blue-left fill to catch the left edge */}
+        {/* Cold backlight for depth */}
         <directionalLight
-          position={[-3, 2, 3]}
+          position={[-1, 1, -6]}
           intensity={0.6}
-          color="#4488cc"
+          color="#5577aa"
         />
 
-        {/* Soft backlight for depth */}
-        <directionalLight
-          position={[-1, 1, -5]}
-          intensity={0.5}
-          color="#4488ff"
-        />
-
-        {/* Dark fog for depth */}
-        <fog attach="fog" args={['#161616', 10, 25]} />
+        {/* Tight fog — claustrophobic industrial depth */}
+        <fog attach="fog" args={['#050508', 8, 20]} />
 
         {/* OrbitControls — auto-rotate slow, pause on user drag */}
         <OrbitControls

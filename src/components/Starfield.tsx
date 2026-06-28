@@ -5,14 +5,17 @@ import * as THREE from 'three'
 const COUNT_DUST = 5000
 const COUNT_STARS = 400
 const COUNT_DEBRIS = 600
+const COUNT_GREEN = 60
 const RADIUS_MIN = 10
 const RADIUS_MAX = 40
 
-function makeStars(count: number, opts: { large: boolean; debris?: boolean }) {
+function makePositions(count: number, opts: { debris?: boolean; green?: boolean }) {
   const pos = new Float32Array(count * 3)
   for (let i = 0; i < count; i++) {
     const radius = opts.debris
       ? 6 + Math.random() * 18
+      : opts.green
+      ? 4 + Math.random() * 20
       : RADIUS_MIN + Math.random() * (RADIUS_MAX - RADIUS_MIN)
     const theta = Math.random() * Math.PI * 2
     const phi = Math.acos(2 * Math.random() - 1)
@@ -25,12 +28,10 @@ function makeStars(count: number, opts: { large: boolean; debris?: boolean }) {
 
 function DustLayer() {
   const ref = useRef<THREE.Points>(null!)
-  const positions = useMemo(() => makeStars(COUNT_DUST, { large: false }), [])
+  const positions = useMemo(() => makePositions(COUNT_DUST, {}), [])
 
   useFrame((state) => {
-    if (ref.current) {
-      ref.current.rotation.y = state.clock.elapsedTime * 0.006
-    }
+    if (ref.current) ref.current.rotation.y = state.clock.elapsedTime * 0.006
   })
 
   return (
@@ -45,7 +46,7 @@ function DustLayer() {
 
 function StarLayer() {
   const ref = useRef<THREE.Points>(null!)
-  const positions = useMemo(() => makeStars(COUNT_STARS, { large: true }), [])
+  const positions = useMemo(() => makePositions(COUNT_STARS, { debris: false }), [])
 
   useFrame((state) => {
     if (ref.current) {
@@ -66,7 +67,7 @@ function StarLayer() {
 
 function DebrisLayer() {
   const ref = useRef<THREE.Points>(null!)
-  const positions = useMemo(() => makeStars(COUNT_DEBRIS, { large: false, debris: true }), [])
+  const positions = useMemo(() => makePositions(COUNT_DEBRIS, { debris: true }), [])
 
   useFrame((state) => {
     if (ref.current) {
@@ -85,12 +86,47 @@ function DebrisLayer() {
   )
 }
 
+function GreenPulsars() {
+  const ref = useRef<THREE.Points>(null!)
+  const matRef = useRef<THREE.PointsMaterial>(null!)
+  const positions = useMemo(() => makePositions(COUNT_GREEN, { green: true }), [])
+
+  useFrame((state) => {
+    if (ref.current) {
+      ref.current.rotation.y = state.clock.elapsedTime * 0.002
+    }
+    if (matRef.current) {
+      const pulse = 0.12 + Math.sin(state.clock.elapsedTime * 2.5) * 0.06
+      matRef.current.size = pulse
+    }
+  })
+
+  return (
+    <points ref={ref}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} count={positions.length / 3} array={positions} itemSize={3} />
+      </bufferGeometry>
+      <pointsMaterial
+        ref={matRef}
+        size={0.12}
+        sizeAttenuation
+        transparent
+        opacity={0.9}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+        color="#7cfc00"
+      />
+    </points>
+  )
+}
+
 export default function Starfield() {
   return (
     <group>
       <DustLayer />
       <StarLayer />
       <DebrisLayer />
+      <GreenPulsars />
     </group>
   )
 }
