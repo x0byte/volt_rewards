@@ -10,9 +10,9 @@ html, body, #root {
   margin: 0;
   padding: 0;
   width: 100%;
-  height: 100%;
+  min-height: 100%;
   overflow-x: hidden;
-  background: #050508;
+  background: #050507;
 }
 
 html {
@@ -247,6 +247,75 @@ body::after {
   margin-top: 6rem;
   padding: 2rem 0;
   border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* ── Cinematic Overlay Typography ──────────────────── */
+.overlay-hero {
+  font-family: 'Inter Tight', 'Inter', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: clamp(2rem, 5.2vw, 4.2rem);
+  letter-spacing: -0.04em;
+  line-height: 1.02;
+  color: #f1f3f8;
+  text-shadow: 0 2px 40px rgba(0, 0, 0, 0.6);
+}
+
+.overlay-line {
+  font-family: 'Inter Tight', 'Inter', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: clamp(1.4rem, 3.4vw, 2.6rem);
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+  color: #e9ecf3;
+  text-shadow: 0 2px 40px rgba(0, 0, 0, 0.6);
+}
+
+.overlay-sub {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: clamp(0.85rem, 1.1vw, 1rem);
+  color: rgba(206, 212, 226, 0.55);
+  line-height: 1.6;
+}
+
+.overlay-eyebrow {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: #7cfc00;
+  opacity: 0.85;
+}
+
+.overlay-scroll {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: rgba(206, 212, 226, 0.3);
+  animation: scroll-fade 2.6s ease-in-out infinite;
+}
+
+.overlay-cta {
+  display: inline-flex;
+  align-items: center;
+  font-family: 'Inter Tight', 'Inter', system-ui, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #050507;
+  background: #7cfc00;
+  padding: 0.8rem 1.7rem;
+  border-radius: 999px;
+  text-decoration: none;
+  box-shadow: 0 0 0 1px rgba(124, 252, 0, 0.4), 0 0 40px rgba(124, 252, 0, 0.25);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease;
+}
+
+.overlay-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 1px rgba(124, 252, 0, 0.6), 0 0 60px rgba(124, 252, 0, 0.4);
 }
 
 /* ── Utility ───────────────────────────────────────── */
