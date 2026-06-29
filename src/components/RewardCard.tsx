@@ -4,6 +4,8 @@ import type { ThreeEvent } from '@react-three/fiber'
 import { RoundedBox } from '@react-three/drei'
 import * as THREE from 'three'
 import type { Mesh } from 'three'
+import type { Object3D } from 'three'
+import MatrixMaterial from '../shaders/MatrixMaterial'
 
 interface RewardCardProps {
   wireframe: boolean
@@ -95,6 +97,26 @@ export default function RewardCard({ onEarn, wireframe }: RewardCardProps) {
   // Load Vector.png (white logo on transparent background)
   const logoTexture = useLoader(THREE.TextureLoader, '/logo.png')
 
+  // ── Mouse tracking for shader ─────────────────────────────
+  const [mouseUV, setMouseUV] = useState<THREE.Vector2>(new THREE.Vector2(-1, -1))
+  const [isHovered, setIsHovered] = useState(false)
+  const localPoint = useRef(new THREE.Vector3())
+
+  const handlePointerMove = useCallback((e: ThreeEvent<PointerEvent>) => {
+    // Convert the raycast intersection point from world space to the card's local space
+    e.object.worldToLocal(localPoint.current.copy(e.point))
+    // Compute UV from local XY position, matching the vertex shader formula:
+    //   vUv = position.xy / vec2(1.5, 0.945) * 0.5 + 0.5
+    const u = localPoint.current.x / 1.5 * 0.5 + 0.5
+    const v = localPoint.current.y / 0.945 * 0.5 + 0.5
+    setMouseUV(new THREE.Vector2(u, v))
+    setIsHovered(true)
+  }, [])
+
+  const handlePointerLeave = useCallback(() => {
+    setIsHovered(false)
+  }, [])
+
   // Handle click → spawn floating points
   const handleClick = useCallback(
     (_e: ThreeEvent<MouseEvent>) => {
@@ -117,21 +139,20 @@ export default function RewardCard({ onEarn, wireframe }: RewardCardProps) {
 
   return (
     <group>
-      {/* Main card body — dims during wireframe */}
+      {/* Main card body — Matrix-watercolor shader */}
       <RoundedBox
         ref={meshRef}
         args={[CARD_W, CARD_H, CARD_D]}
         radius={BEVEL}
         smoothness={SMOOTHNESS}
         onClick={handleClick}
+        onPointerMove={handlePointerMove}
+        onPointerLeave={handlePointerLeave}
       >
-        <meshStandardMaterial
-          color="#1A191F"
-          metalness={0.95}
-          roughness={0.35}
-          envMapIntensity={1.0}
-          transparent
-          opacity={wireframe ? 0.12 : 1}
+        <MatrixMaterial
+          mouseUV={mouseUV}
+          isHovered={isHovered}
+          wireframe={wireframe}
         />
       </RoundedBox>
 
