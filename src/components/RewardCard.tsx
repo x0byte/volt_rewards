@@ -1,13 +1,11 @@
-import { useRef, useState, useEffect, useCallback, useMemo } from 'react'
+import { useRef, useMemo } from 'react'
 import { useLoader, useFrame } from '@react-three/fiber'
-import type { ThreeEvent } from '@react-three/fiber'
 import { RoundedBox } from '@react-three/drei'
 import * as THREE from 'three'
-import type { Mesh } from 'three'
+import type { Group } from 'three'
 
 interface RewardCardProps {
-  wireframe: boolean
-  onEarn: (worldPos: THREE.Vector3) => void
+  scrollProgress?: number
 }
 
 const CARD_W = 3.0
@@ -20,165 +18,199 @@ const SMOOTHNESS = 4
 const LOGO_W = 2237
 const LOGO_H = 426
 
-// ── Perimeter wireframe overlay ─────────────────────
-function WireframeOverlay({ geometry }: { geometry: THREE.BufferGeometry }) {
-  const linesRef = useRef<THREE.LineSegments>(null!)
-  const pointsRef = useRef<THREE.Points>(null!)
+// ── Irregular rock debris ───────────────────────────
+// A flawless solid card is shown at rest. Once it starts breaking, we swap in
+// a cloud of *inconsistent* rock-like chunks (varied shapes, non-uniform
+// scales) that blow apart with real ballistic motion.
+const CHUNK_COUNT = 60
 
-  // Extract only perimeter edges (hard creases)
-  const edgeGeo = useMemo(() => {
-    return new THREE.EdgesGeometry(geometry, 1)
-  }, [geometry])
+interface Chunk {
+  origin: THREE.Vector3   // spawn point across the card volume
+  vel: THREE.Vector3      // launch velocity
+  spinAxis: THREE.Vector3
+  spinSpeed: number
+  scale: THREE.Vector3    // non-uniform → jagged, inconsistent look
+  geoType: number
+  delay: number           // staggered break-off (0..0.25)
+}
 
-  // Store original edge vertex positions for animation
-  const origPos = useMemo(() => {
-    const pos = edgeGeo.attributes.position
-    return new Float32Array(pos.array)
-  }, [edgeGeo])
+function rand(seed: number) {
+  const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453
+  return x - Math.floor(x)
+}
 
-  // Skip animation if there's no position data
-  const hasPos = edgeGeo.attributes.position.count > 0
+function buildChunks(): Chunk[] {
+  const chunks: Chunk[] = []
+  for (let i = 0; i < CHUNK_COUNT; i++) {
+    const s = i * 13 + 1
+    const ox = (rand(s + 0) - 0.5) * CARD_W
+    const oy = (rand(s + 1) - 0.5) * CARD_H
+    const oz = (rand(s + 2) - 0.5) * CARD_D * 2
+    const origin = new THREE.Vector3(ox, oy, oz)
 
-  // Animate vertices — soft wave on the perimeter cage
-  useFrame((state) => {
-    if (!linesRef.current || !hasPos) return
-    const pos = edgeGeo.attributes.position
-    const t = state.clock.elapsedTime
-    for (let i = 0; i < pos.count; i++) {
-      const i3 = i * 3
-      pos.array[i3]     = origPos[i3]     + Math.sin(t * 2.5 + i * 0.7) * 0.012
-      pos.array[i3 + 1] = origPos[i3 + 1] + Math.cos(t * 2.0 + i * 0.5) * 0.012
-      pos.array[i3 + 2] = origPos[i3 + 2] + Math.sin(t * 1.8 + i * 0.3) * 0.012
-    }
-    pos.needsUpdate = true
-    if (pointsRef.current) {
-      pointsRef.current.geometry.attributes.position.needsUpdate = true
-    }
+    // Launch radially outward from centre, with jitter + forward bias
+    const radial = new THREE.Vector3(ox, oy, 0).normalize()
+    const jitter = new THREE.Vector3(
+      (rand(s + 3) - 0.5) * 0.9,
+      (rand(s + 4) - 0.5) * 0.9,
+      (rand(s + 5) - 0.2) * 1.6
+    )
+    const speed = 2.4 + rand(s + 6) * 3.0
+    const vel = radial.add(jitter).normalize().multiplyScalar(speed)
+
+    const spinAxis = new THREE.Vector3(
+      rand(s + 7) - 0.5,
+      rand(s + 8) - 0.5,
+      rand(s + 9) - 0.5
+    ).normalize()
+
+    // Non-uniform scale so no two chunks look alike
+    const base = 0.1 + rand(s + 10) * 0.22
+    const scale = new THREE.Vector3(
+      base * (0.6 + rand(s + 11) * 0.9),
+      base * (0.6 + rand(s + 12) * 0.9),
+      base * (0.6 + rand(s + 13) * 0.9)
+    )
+
+    chunks.push({
+      origin,
+      vel,
+      spinAxis,
+      spinSpeed: 2 + rand(s + 14) * 6,
+      scale,
+      geoType: Math.floor(rand(s + 15) * 4),
+      delay: rand(s + 16) * 0.25,
+    })
+  }
+  return chunks
+}
+
+function smoothstep(edge0: number, edge1: number, x: number) {
+  const t = Math.min(Math.max((x - edge0) / (edge1 - edge0), 0), 1)
+  return t * t * (3 - 2 * t)
+}
+
+// ── Debris cloud ────────────────────────────────────
+function Debris({ progress }: { progress: number }) {
+  const groupRef = useRef<Group>(null)
+  const chunks = useMemo(() => buildChunks(), [])
+
+  // A few different jagged rock geometries for variety
+  const geos = useMemo(
+    () => [
+      new THREE.TetrahedronGeometry(1, 0),
+      new THREE.IcosahedronGeometry(1, 0),
+      new THREE.DodecahedronGeometry(1, 0),
+      new THREE.OctahedronGeometry(1, 0),
+    ],
+    []
+  )
+
+  useFrame(() => {
+    const g = groupRef.current
+    if (!g) return
+    const GRAVITY = -6.5
+
+    chunks.forEach((c, idx) => {
+      const child = g.children[idx] as THREE.Mesh
+      if (!child) return
+
+      const local = smoothstep(c.delay, 1, progress)
+      const t = local
+      const dx = c.vel.x * t
+      const dy = c.vel.y * t + 0.5 * GRAVITY * t * t
+      const dz = c.vel.z * t
+
+      child.position.set(c.origin.x + dx, c.origin.y + dy, c.origin.z + dz)
+      child.setRotationFromAxisAngle(c.spinAxis, c.spinSpeed * local)
+      // Chunks grow in from nothing as the card fractures
+      const grow = smoothstep(0, 0.12, progress)
+      child.scale.set(c.scale.x * grow, c.scale.y * grow, c.scale.z * grow)
+    })
   })
 
+  if (progress <= 0.001) return null
+
   return (
-    <group>
-      {/* White perimeter lines */}
-      <lineSegments ref={linesRef} geometry={edgeGeo} position={[0, 0, 0.01]}>
-        <lineBasicMaterial color="white" transparent opacity={0.9} />
-      </lineSegments>
-      {/* White nodes at perimeter vertices */}
-      <points ref={pointsRef} geometry={edgeGeo} position={[0, 0, 0.01]}>
-        <pointsMaterial
-          color="white"
-          size={0.04}
-          sizeAttenuation
-          transparent
-          opacity={1}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
-      </points>
+    <group ref={groupRef}>
+      {chunks.map((c, i) => (
+        <mesh key={i} geometry={geos[c.geoType]}>
+          <meshStandardMaterial
+            color="#211f27"
+            metalness={0.85}
+            roughness={0.5}
+            envMapIntensity={0.9}
+            flatShading
+          />
+        </mesh>
+      ))}
     </group>
   )
 }
 
-// ── Main RewardCard ─────────────────────────────────
-export default function RewardCard({ onEarn, wireframe }: RewardCardProps) {
-  const meshRef = useRef<Mesh>(null)
-  const [cageGeo, setCageGeo] = useState<THREE.BufferGeometry | null>(null)
-  const geoCaptured = useRef(false)
-  // Capture the RoundedBox geometry once after mount
-  useEffect(() => {
-    if (meshRef.current && !geoCaptured.current) {
-      const geo = meshRef.current.geometry.clone()
-      setCageGeo(geo)
-      geoCaptured.current = true
-    }
-  })
-
-  // Load Vector.png (white logo on transparent background)
-  const logoTexture = useLoader(THREE.TextureLoader, '/logo.png')
-
-  // Handle click → spawn floating points
-  const handleClick = useCallback(
-    (_e: ThreeEvent<MouseEvent>) => {
-      if (!meshRef.current) return
-      const worldPos = new THREE.Vector3()
-      meshRef.current.getWorldPosition(worldPos)
-      worldPos.add(
-        new THREE.Vector3(0, 0, CARD_D / 2 + 0.05).applyQuaternion(
-          meshRef.current.quaternion
-        )
-      )
-      onEarn(worldPos)
-    },
-    [onEarn]
-  )
-
-  // Preserve native aspect ratio (5.25:1) and fit within card width
+// ── Flawless intact card ────────────────────────────
+function IntactCard({ opacity, logoTexture }: { opacity: number; logoTexture: THREE.Texture }) {
   const logoW = CARD_W * 0.8
   const logoH = logoW * (LOGO_H / LOGO_W)
+  const transparent = opacity < 1
 
   return (
     <group>
-      {/* Main card body — dims during wireframe */}
-      <RoundedBox
-        ref={meshRef}
-        args={[CARD_W, CARD_H, CARD_D]}
-        radius={BEVEL}
-        smoothness={SMOOTHNESS}
-        onClick={handleClick}
-      >
+      {/* Solid body — one seamless rounded box */}
+      <RoundedBox args={[CARD_W, CARD_H, CARD_D]} radius={BEVEL} smoothness={SMOOTHNESS}>
         <meshStandardMaterial
           color="#1A191F"
           metalness={0.95}
           roughness={0.35}
           envMapIntensity={1.0}
-          transparent
-          opacity={wireframe ? 0.12 : 1}
+          transparent={transparent}
+          opacity={opacity}
         />
       </RoundedBox>
 
-      {/* Perimeter wireframe overlay — only outer edges */}
-      {wireframe && cageGeo && <WireframeOverlay geometry={cageGeo} />}
-
-      {/* Front face — logo */}
+      {/* Logo front / back */}
       <mesh position={[0, 0, CARD_D / 2 + 0.02]}>
         <planeGeometry args={[logoW, logoH]} />
-        <meshBasicMaterial
-          map={logoTexture}
-          transparent
-          opacity={1}
-          depthWrite={false}
-          side={THREE.DoubleSide}
-        />
+        <meshBasicMaterial map={logoTexture} transparent opacity={opacity} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
-
-      {/* Back face — mirrored logo */}
       <mesh position={[0, 0, -CARD_D / 2 - 0.02]} rotation={[0, Math.PI, 0]}>
         <planeGeometry args={[logoW, logoH]} />
-        <meshBasicMaterial
-          map={logoTexture}
-          transparent
-          opacity={1}
-          depthWrite={false}
-          side={THREE.DoubleSide}
-        />
+        <meshBasicMaterial map={logoTexture} transparent opacity={opacity} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
 
-      {/* Silver edge rim — hidden during wireframe */}
-      {!wireframe && (
-        <RoundedBox
-          args={[CARD_W + 0.02, CARD_H + 0.02, CARD_D + 0.01]}
-          radius={BEVEL + 0.01}
-          smoothness={SMOOTHNESS}
-        >
-          <meshStandardMaterial
-            color="#2a2a2a"
-            metalness={0.98}
-            roughness={0.25}
-            envMapIntensity={1.2}
-            transparent
-            opacity={0.6}
-          />
-        </RoundedBox>
-      )}
+      {/* Silver edge rim */}
+      <RoundedBox
+        args={[CARD_W + 0.02, CARD_H + 0.02, CARD_D + 0.01]}
+        radius={BEVEL + 0.01}
+        smoothness={SMOOTHNESS}
+      >
+        <meshStandardMaterial
+          color="#2a2a2a"
+          metalness={0.98}
+          roughness={0.25}
+          envMapIntensity={1.2}
+          transparent
+          opacity={0.6 * opacity}
+        />
+      </RoundedBox>
+    </group>
+  )
+}
+
+// ── Main RewardCard ─────────────────────────────────
+export default function RewardCard({ scrollProgress = 0 }: RewardCardProps) {
+  const shatter = Math.min(Math.max(scrollProgress, 0), 1)
+  const logoTexture = useLoader(THREE.TextureLoader, '/logo.png')
+
+  // Intact card is flawless & fully opaque at rest, then dissolves quickly as
+  // the debris takes over — a short cross-fade hides the hand-off.
+  const intactOpacity = Math.max(0, 1 - shatter / 0.14)
+  const showIntact = intactOpacity > 0.001
+
+  return (
+    <group>
+      {showIntact && <IntactCard opacity={intactOpacity} logoTexture={logoTexture} />}
+      <Debris progress={shatter} />
     </group>
   )
 }
