@@ -6,6 +6,7 @@ import type { Group } from 'three'
 
 interface RewardCardProps {
   scrollProgress?: number
+  shatterMode?: number // 0=explosion, 1=implosion, 2=slice, 3=dissolve
 }
 
 const CARD_W = 3.0
@@ -32,6 +33,7 @@ interface Chunk {
   scale: THREE.Vector3    // non-uniform → jagged, inconsistent look
   geoType: number
   delay: number           // staggered break-off (0..0.25)
+  implosionVel?: THREE.Vector3 // for implosion mode
 }
 
 function rand(seed: number) {
@@ -91,7 +93,7 @@ function smoothstep(edge0: number, edge1: number, x: number) {
 }
 
 // ── Debris cloud ────────────────────────────────────
-function Debris({ progress }: { progress: number }) {
+function Debris({ progress, shatterMode }: { progress: number; shatterMode: number }) {
   const groupRef = useRef<Group>(null)
   const chunks = useMemo(() => buildChunks(), [])
 
@@ -117,15 +119,66 @@ function Debris({ progress }: { progress: number }) {
 
       const local = smoothstep(c.delay, 1, progress)
       const t = local
-      const dx = c.vel.x * t
-      const dy = c.vel.y * t + 0.5 * GRAVITY * t * t
-      const dz = c.vel.z * t
+
+      let dx: number, dy: number, dz: number
+
+      // Different shatter modes
+      switch (shatterMode) {
+        case 1: // Implosion - chunks fly inward then bounce out
+          {
+            const implodeT = t < 0.4 ? t / 0.4 : 1 - (t - 0.4) / 0.6
+            const bounceT = t < 0.4 ? 0 : (t - 0.4) / 0.6
+            // First fly toward center, then explode out
+            const inwardX = -c.origin.x * implodeT * 0.8
+            const inwardY = -c.origin.y * implodeT * 0.8
+            const inwardZ = -c.origin.z * implodeT * 0.8
+            const outwardX = c.vel.x * bounceT * 1.5
+            const outwardY = c.vel.y * bounceT + 0.5 * GRAVITY * bounceT * bounceT
+            const outwardZ = c.vel.z * bounceT * 1.5
+            dx = inwardX + outwardX
+            dy = inwardY + outwardY
+            dz = inwardZ + outwardZ
+          }
+          break
+        case 2: // Slice - card splits horizontally then crumbles
+          {
+            const sliceT = Math.min(t * 2, 1)
+            const crumbleT = Math.max(0, (t - 0.5) * 2)
+            const isTop = c.origin.y > 0
+            const sliceDir = isTop ? 1 : -1
+            dx = c.vel.x * crumbleT * 0.5
+            dy = sliceDir * sliceT * 1.5 + c.vel.y * crumbleT + 0.5 * GRAVITY * crumbleT * crumbleT
+            dz = c.vel.z * crumbleT * 0.5
+          }
+          break
+        case 3: // Dissolve - pixel/particle disintegration
+          {
+            const dissolveT = t * t // Accelerated dissolve
+            const noise = Math.sin(c.origin.x * 10 + c.origin.y * 10) * 0.5 + 0.5
+            const localDissolve = Math.max(0, dissolveT - noise * 0.3)
+            dx = c.vel.x * localDissolve * 0.3
+            dy = c.vel.y * localDissolve * 0.3 + localDissolve * 2
+            dz = c.vel.z * localDissolve * 0.3
+          }
+          break
+        default: // Explosion (original)
+          dx = c.vel.x * t
+          dy = c.vel.y * t + 0.5 * GRAVITY * t * t
+          dz = c.vel.z * t
+      }
 
       child.position.set(c.origin.x + dx, c.origin.y + dy, c.origin.z + dz)
       child.setRotationFromAxisAngle(c.spinAxis, c.spinSpeed * local)
-      // Chunks grow in from nothing as the card fractures
       const grow = smoothstep(0, 0.12, progress)
       child.scale.set(c.scale.x * grow, c.scale.y * grow, c.scale.z * grow)
+
+      // Subtle edge glow — metallic black chunks catching green/white light
+      const mat = child.material as THREE.MeshStandardMaterial
+      if (mat && mat.emissive) {
+        // Very subtle green-tinted emissive on edges, not full glow
+        mat.emissive.setRGB(0.02, 0.08, 0.02)
+        mat.emissiveIntensity = 0.3 * progress
+      }
     })
   })
 
@@ -136,11 +189,13 @@ function Debris({ progress }: { progress: number }) {
       {chunks.map((c, i) => (
         <mesh key={i} geometry={geos[c.geoType]}>
           <meshStandardMaterial
-            color="#211f27"
-            metalness={0.85}
-            roughness={0.5}
-            envMapIntensity={0.9}
+            color="#0a0a0e"
+            metalness={0.95}
+            roughness={0.18}
+            envMapIntensity={1.8}
             flatShading
+            emissive="#000000"
+            emissiveIntensity={0}
           />
         </mesh>
       ))}
@@ -198,7 +253,7 @@ function IntactCard({ opacity, logoTexture }: { opacity: number; logoTexture: TH
 }
 
 // ── Main RewardCard ─────────────────────────────────
-export default function RewardCard({ scrollProgress = 0 }: RewardCardProps) {
+export default function RewardCard({ scrollProgress = 0, shatterMode = 0 }: RewardCardProps) {
   const shatter = Math.min(Math.max(scrollProgress, 0), 1)
   const logoTexture = useLoader(THREE.TextureLoader, '/logo.png')
 
@@ -210,7 +265,7 @@ export default function RewardCard({ scrollProgress = 0 }: RewardCardProps) {
   return (
     <group>
       {showIntact && <IntactCard opacity={intactOpacity} logoTexture={logoTexture} />}
-      <Debris progress={shatter} />
+      <Debris progress={shatter} shatterMode={shatterMode ?? 0} />
     </group>
   )
 }
