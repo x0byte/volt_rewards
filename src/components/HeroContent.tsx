@@ -45,7 +45,7 @@ export default function HeroContent() {
         <p className="hero-tagline mt-4 max-w-sm">
           {isTouch
             ? 'Tap to shatter the card into stardust.'
-            : 'Scroll to shatter the card into stardust — then scroll back to rebuild it.'}
+            : 'Scroll to shatter the card into stardust, then scroll back to rebuild it.'}
         </p>
       </div>
 
