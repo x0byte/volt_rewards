@@ -1,10 +1,16 @@
 import { useEffect, useState } from 'react'
 
+function isTouchPrimary(): boolean {
+  if (typeof window === 'undefined') return false
+  return 'ontouchstart' in window && navigator.maxTouchPoints > 0 && window.innerWidth < 1024
+}
+
 export default function HeroContent() {
   const [visible, setVisible] = useState(false)
-  // Tracks whether the user has begun interacting (scroll / drag). Once they
-  // do, the "scroll" hint gracefully retires so it never fights the debris.
+  // Tracks whether the user has begun interacting (scroll / drag / tap). Once they
+  // do, the hint gracefully retires so it never fights the debris.
   const [engaged, setEngaged] = useState(false)
+  const [isTouch, setIsTouch] = useState(false)
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 500)
@@ -12,12 +18,18 @@ export default function HeroContent() {
   }, [])
 
   useEffect(() => {
+    setIsTouch(isTouchPrimary())
+  }, [])
+
+  useEffect(() => {
     const onEngage = () => setEngaged(true)
     window.addEventListener('wheel', onEngage, { passive: true, once: true })
     window.addEventListener('touchmove', onEngage, { passive: true, once: true })
+    window.addEventListener('touchend', onEngage, { passive: true, once: true })
     return () => {
       window.removeEventListener('wheel', onEngage)
       window.removeEventListener('touchmove', onEngage)
+      window.removeEventListener('touchend', onEngage)
     }
   }, [])
 
@@ -28,14 +40,17 @@ export default function HeroContent() {
     >
       {/* Heading — bottom-left corner */}
       <div className="absolute left-[2.8rem] md:left-[5rem] bottom-20 md:bottom-24 pointer-events-auto">
-        <h1 className="hero-title">Scroll to Break.</h1>
+        <h1 className="hero-title">{isTouch ? 'Tap to Break.' : 'Scroll to Break.'}</h1>
         <h1 className="hero-title -mt-1">Earn Rewards.</h1>
         <p className="hero-tagline mt-4 max-w-sm">
-          Scroll to shatter the card into stardust — then scroll back to rebuild it.
+          {isTouch
+            ? 'Tap to shatter the card into stardust.'
+            : 'Scroll to shatter the card into stardust — then scroll back to rebuild it.'}
         </p>
       </div>
 
-      {/* Scroll prompt — centered, animated, retires once the user engages */}
+      {/* Interaction prompt — centered, animated, retires once the user engages.
+          Shows a mouse wheel on desktop, a tap/finger icon on touch devices. */}
       <div
         className="scroll-prompt pointer-events-none"
         style={{
@@ -44,10 +59,26 @@ export default function HeroContent() {
           transition: 'opacity 0.7s ease, transform 0.7s ease',
         }}
       >
-        <span className="scroll-prompt__label">scroll to shatter</span>
-        <span className="scroll-prompt__mouse" aria-hidden="true">
-          <span className="scroll-prompt__wheel" />
-        </span>
+        {isTouch ? (
+          <>
+            <span className="scroll-prompt__label">tap to shatter</span>
+            <span className="scroll-prompt__tap" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2a4 4 0 0 0-4 4v6a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4z" />
+                <path d="M12 16v4" />
+                <path d="M8 20h8" />
+                <circle cx="12" cy="6" r="1" fill="currentColor" opacity="0.5" />
+              </svg>
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="scroll-prompt__label">scroll to shatter</span>
+            <span className="scroll-prompt__mouse" aria-hidden="true">
+              <span className="scroll-prompt__wheel" />
+            </span>
+          </>
+        )}
       </div>
     </div>
 

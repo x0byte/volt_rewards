@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 
 import { Canvas, useThree } from '@react-three/fiber'
 import { Environment, OrbitControls } from '@react-three/drei'
@@ -9,9 +9,6 @@ import Starfield from './Starfield'
 
 
 // ── Responsive camera ───────────────────────────────
-// Keeps the rotating card fully visible across screen sizes by pulling the
-// camera back on narrow/portrait viewports (where the horizontal FOV shrinks).
-// Runs only on resize/mount (not every frame) to avoid jitter.
 function ResponsiveCamera() {
   const camera = useThree((s) => s.camera)
   const size = useThree((s) => s.size)
@@ -32,25 +29,68 @@ function ResponsiveCamera() {
   return null
 }
 
-// ── Gesture-driven shatter progress ──
-// The page itself does NOT scroll. Instead we capture wheel / touch-drag
-// gestures and accumulate them into a virtual 0 → 1 "shatter" value that
-// breaks the card apart in place. Scrolling up reverses it.
-const SHATTER_SENSITIVITY = 6000 // px of wheel/drag to go 0 → 1 (higher = slower)
-const INTRO_START = 0.6          // card starts ~60% shattered on load…
-const INTRO_DURATION = 2200      // …then reassembles over this many ms
+// ── Detect touch-primary devices ────────────────────
+function isTouchPrimary(): boolean {
+  if (typeof window === 'undefined') return false
+  return 'ontouchstart' in window && navigator.maxTouchPoints > 0 && window.innerWidth < 1024
+}
+
+// ── Gesture-driven shatter progress ─────────────────
+// Desktop: wheel accumulates into 0→1 shatter value (original behaviour).
+// Mobile / touch: tap triggers a burst (shatter → 1 then auto-reassemble),
+// and drag is much more sensitive so a single swipe does meaningful work.
+const SHATTER_SENSITIVITY = 6000
+const TOUCH_SENSITIVITY = 800       // much lower → single swipe shatters
+const INTRO_START = 0.6
+const INTRO_DURATION = 2200
+const BURST_PEAK_HOLD = 600         // ms to hold at full shatter before reassemble
+const BURST_REASSEMBLE_DURATION = 1800
 
 function useScrollProgress() {
   const [progress, setProgress] = useState(INTRO_START)
+  const touch = useRef(isTouchPrimary())
+  const burstRef = useRef<{ start: number; phase: 'hold' | 'reassemble' } | null>(null)
+  const burstRaf = useRef(0)
+
+  // ── Burst animation (mobile tap) ──
+  const runBurst = useCallback(() => {
+    cancelAnimationFrame(burstRaf.current)
+    const animate = () => {
+      const b = burstRef.current
+      if (!b) return
+      const elapsed = performance.now() - b.start
+      if (b.phase === 'hold') {
+        setProgress(1)
+        if (elapsed >= BURST_PEAK_HOLD) {
+          b.phase = 'reassemble'
+          b.start = performance.now()
+        }
+      } else {
+        const t = Math.min(elapsed / BURST_REASSEMBLE_DURATION, 1)
+        // ease-in-out cubic
+        const eased = t < 0.5
+          ? 4 * t * t * t
+          : 1 - Math.pow(-2 * t + 2, 3) / 2
+        setProgress(1 - eased)
+        if (t >= 1) {
+          burstRef.current = null
+          setProgress(0)
+          return
+        }
+      }
+      burstRaf.current = requestAnimationFrame(animate)
+    }
+    burstRef.current = { start: performance.now(), phase: 'hold' }
+    burstRaf.current = requestAnimationFrame(animate)
+  }, [])
+
   useEffect(() => {
-    let value = 0            // the gesture-driven value (starts assembled)
+    let value = 0
     let raf = 0
     let introRaf = 0
     let introDone = false
 
     // ── Intro: play the construction once on load ──
-    // Tween a separate value from INTRO_START → 0 with easing, then hand off
-    // control to the wheel/touch gesture.
     const startTime = performance.now()
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
     const runIntro = () => {
@@ -67,34 +107,52 @@ function useScrollProgress() {
     introRaf = requestAnimationFrame(runIntro)
 
     const apply = (delta: number) => {
-      // Ignore gestures until the intro construction has finished.
       if (!introDone) return
-      value = Math.min(Math.max(value + delta / SHATTER_SENSITIVITY, 0), 1)
+      // If a burst is running on mobile, ignore drag input
+      if (burstRef.current) return
+      const sensitivity = touch.current ? TOUCH_SENSITIVITY : SHATTER_SENSITIVITY
+      value = Math.min(Math.max(value + delta / sensitivity, 0), 1)
       cancelAnimationFrame(raf)
       raf = requestAnimationFrame(() => setProgress(value))
     }
 
+    // ── Desktop: wheel ──
     const onWheel = (e: WheelEvent) => {
-      // Only hijack the gesture while there's still shatter to play; this
-      // keeps the page pinned during the break-apart.
+      if (touch.current) return
       e.preventDefault()
       apply(e.deltaY)
     }
 
-
+    // ── Mobile: tap-to-burst + sensitive drag ──
     let lastTouchY: number | null = null
+    let touchStartTime = 0
+    let touchMoved = false
+
     const onTouchStart = (e: TouchEvent) => {
+      if (!touch.current) return
       lastTouchY = e.touches[0]?.clientY ?? null
+      touchStartTime = performance.now()
+      touchMoved = false
     }
     const onTouchMove = (e: TouchEvent) => {
-      if (lastTouchY == null) return
+      if (!touch.current || lastTouchY == null) return
       const y = e.touches[0]?.clientY ?? lastTouchY
-      const delta = lastTouchY - y // dragging up → positive → shatter
+      const delta = lastTouchY - y
       lastTouchY = y
-      e.preventDefault()
+      // Only prevent default if the user is actually dragging (not just tapping)
+      if (Math.abs(delta) > 2) {
+        touchMoved = true
+        e.preventDefault()
+      }
       apply(delta * 2.2)
     }
-    const onTouchEnd = () => {
+    const onTouchEnd = (e: TouchEvent) => {
+      if (!touch.current) return
+      const elapsed = performance.now() - touchStartTime
+      // Quick tap (< 250ms, minimal movement) → trigger burst
+      if (elapsed < 250 && !touchMoved && introDone && !burstRef.current) {
+        runBurst()
+      }
       lastTouchY = null
     }
 
@@ -105,13 +163,13 @@ function useScrollProgress() {
     return () => {
       cancelAnimationFrame(raf)
       cancelAnimationFrame(introRaf)
+      cancelAnimationFrame(burstRaf.current)
       window.removeEventListener('wheel', onWheel)
-
       window.removeEventListener('touchstart', onTouchStart)
       window.removeEventListener('touchmove', onTouchMove)
       window.removeEventListener('touchend', onTouchEnd)
     }
-  }, [])
+  }, [runBurst])
   return progress
 }
 
@@ -119,6 +177,7 @@ function useScrollProgress() {
 
 export default function Scene() {
   const scrollProgress = useScrollProgress()
+  const touch = useRef(isTouchPrimary())
 
   return (
 
@@ -148,6 +207,14 @@ export default function Scene() {
           autoRotate
           autoRotateSpeed={1.2}
           target={[0, 0, 0]}
+          // On touch devices, disable OrbitControls' touch handling so it
+          // doesn't fight the shatter drag / tap-to-burst gesture.
+          touches={{
+            ONE: touch.current ? THREE.TOUCH.ROTATE : THREE.TOUCH.ROTATE,
+            TWO: THREE.TOUCH.DOLLY_ROTATE,
+          }}
+          // Disable touch rotation on mobile to prevent conflict with shatter gesture
+          {...(touch.current ? { enableRotate: false } : {})}
         />
 
         <RewardCard scrollProgress={scrollProgress} />
